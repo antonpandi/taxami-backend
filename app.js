@@ -14,7 +14,7 @@ let connPromise = "";
 connectToDatabase();
 
 const app = express();
-app.listen(12345);
+app.listen(3000);
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(cors({ credentials: true, origin: true }));
@@ -42,6 +42,7 @@ app.post("/add/buildings", authToken, addBuilding);
 app.post("/add/assignments", authToken, addAssignment);
 app.post("/link/buildings", authToken, linkWorkerToBuilding);
 app.post("/link/workers", authToken, linkWorkerToClient);
+app.post("/get/worker", getWorker);
 
 //DELETE Routes
 app.delete("/remove/client", removeClient);
@@ -78,6 +79,10 @@ function connectToDatabase() {
       connectToDatabase();
     }
   });
+}
+
+async function getData(query, props){
+
 }
 
 async function authToken(req, res, next) {
@@ -165,13 +170,15 @@ async function getAllWorkers(req, res) {
 async function getAllBuildings(req, res) {
   let query = "SELECT * FROM buildings";
 
-  await conn.execute(query, (err, result) => {
-    console.log(result);
-    if (err) res.json({ mes: err });
-    if (result)
-      res.json({ mes: "Successfully found Buildings", result: result });
-    else res.json({ mes: "No Buildings was found" });
-  });
+  try {
+    const [buildings, fields] = await connPromise.execute(query)
+
+    console.log("result: ", buildings);
+    res.json(buildings) 
+  } catch (error) {
+    res.json({mes: "No builds found"})
+  }
+
 }
 
 async function getAllAssignments(req, res) {
@@ -222,7 +229,9 @@ async function clientLogin(req, res) {
   let user = "";
 
   let query = `SELECT * FROM users WHERE email = ? LIMIT 1`;
+
   try {
+
     conn.execute(query, [email], async (err, result) => {
       if (err) throw err;
       let user = result[0];
@@ -498,6 +507,13 @@ function linkWorkerToClient(req, res) {
     if (err) res.json({ mes: err.message, err: err, result: result });
     res.json({ mes: "user linked to building", result: result });
   });
+}
+
+async function getWorker(req, res){
+  let id = req.body.id;
+  const [workers, rows] = await connPromise.execute("SELECT * FROM users WHERE id = ?", id)
+  delete workers[0].password;
+  res.json({worker:workers[0]});
 }
 
 //DELETE Functions
