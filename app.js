@@ -40,6 +40,9 @@ app.post("/add/client", addClient);
 app.post("/add/worker", addWorker);
 app.post("/add/buildings", authToken, addBuilding);
 app.post("/add/assignments", authToken, addAssignment);
+app.post("/building", getBuilding);
+app.post("/building/assignments", getBuildingAssignments);
+app.post("/building/workers", getWorkers);
 app.post("/link/buildings", authToken, linkWorkerToBuilding);
 app.post("/link/workers", authToken, linkWorkerToClient);
 app.post("/get/worker", getWorker);
@@ -511,11 +514,33 @@ function linkWorkerToClient(req, res) {
   });
 }
 
-async function getWorker(req, res){
+async function getBuilding(req, res){
+  console.log("Body: ", req.body)
   let id = req.body.id;
-  const [workers, rows] = await connPromise.execute("SELECT * FROM users WHERE id = ?", id)
-  delete workers[0].password;
+  const [buildings, rows] = await connPromise.execute("SELECT * FROM buildings WHERE id = ?", [id])
+  res.json({building:buildings[0]});
+}
+
+async function getBuildingAssignments(req, res){
+  console.log("Body: ", req.body)
+  let id = req.body.id;
+  const [assignments, rows] = await connPromise.execute("SELECT * FROM assignments WHERE building_id = ?", [id])
+  console.log("Assignments: ", assignments)
+  res.json({assignments});
+}
+
+async function getWorker(req, res){
+  console.log(req.body)
+  let id = req.body.id;
+  const [workers, rows] = await connPromise.execute("SELECT * FROM workers WHERE id = ?", [id])
   res.json({worker:workers[0]});
+}
+
+async function getWorkers(req, res){
+  console.log(req.body)
+  let building = req.body.building;
+  const [workers, rows] = await connPromise.execute("SELECT * FROM workers WHERE id IN (SELECT worker_id FROM worker_building WHERE building_id = ?)", [building.id])
+  res.json({workers});
 }
 
 //DELETE Functions
