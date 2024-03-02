@@ -92,6 +92,8 @@ async function authToken(req, res, next) {
   jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, user) => {
     if (err) {
       console.error({ error: err.message });
+      console.error("User was not authenticated")
+      res.redirect("/login");
       return res.sendStatus(403);
     }
     console.log("User: ", user);
