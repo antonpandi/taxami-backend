@@ -36,8 +36,9 @@ app.post("/login/client", clientLogin);
 app.post("/login/worker", workerLogin);
 // app.post("/add/client", authToken, addClient);
 // app.post("/add/worker", authToken, addWorker);
-app.post("/add/client", addClient);
-app.post("/add/worker", addWorker);
+app.post("/register", register);
+app.post("/register/client", registerClient);
+app.post("/register/worker", registerWorker);
 app.post("/add/buildings", authToken, addBuilding);
 app.post("/add/assignments", authToken, addAssignment);
 app.post("/building", getBuilding);
@@ -292,8 +293,75 @@ async function workerLogin(req, res) {
     res.json({ err: err.message });
   }
 }
+async function register(req, res) {
+  console.log("body", req.body);
+  //Something was posted
+  let { fname, lname, email, password, role } = req.body;
 
-async function addClient(req, res) {
+  const emailExists = await checkEmail(email, role);
+
+  if (emailExists){
+    console.log("Email already in use")
+    return res.json({ mes: "Email already in use" });
+  }
+
+  console.log(
+    "fname: ", fname,
+    "lname: ", lname,
+    "email: ", email,
+    "password: ", password,
+  );
+  
+  let userQuery = [
+    fname.trim(),
+    lname.trim(),
+    email.trim(),
+    role,
+  ];
+
+
+  let query;
+
+  switch(role) {
+    case "WORKER":
+      query = `
+      INSERT INTO workers(
+        fname,
+        lname,
+        email,
+        role
+    ) values(?, ?, ?, ?)`;
+      break;
+    case "CLIENT":
+      userQuery.splice(3, 0, await hashPassword(password.trim()))
+
+        query = `
+      INSERT INTO users(
+        fname,
+        lname,
+        email,
+        password,
+        role
+      ) values(?, ?, ?, ?, ?)`;
+      break;
+    default:
+      return res.sendStatus(403).json({mes: "Unknown registration type"});
+  }
+
+
+    //Save to database
+    try{
+      console.log("Query: ", query, "Array: ",userQuery);
+      const {result, fields} = await connPromise.execute(query,userQuery)
+      return res.json({mes: "Registration was sucsessfull"})
+    }catch (err) {
+      console.error({mes: err.message, err});
+      return res.json({ mes: err.message, err,})
+    }
+
+}
+
+async function registerClient(req, res) {
   console.log("body", req.body);
   //Something was posted
   let { fname, lname, email, password, role } = req.body;
@@ -346,7 +414,7 @@ async function addClient(req, res) {
   }
 }
 
-async function addWorker(req, res) {
+async function registerWorker(req, res) {
   console.log("body", req.body);
   //Something was posted
   let { fname, lname, email, role } = req.body;
@@ -819,10 +887,13 @@ function uncompleteAssignment(req, res) {
   });
 }
 
-async function checkEmail(email) {
-  let query = "SELECT * FROM users WHERE email = ?";
+async function checkEmail(email, role) {
+  let table = role == "CLIENT" ? "users" : "workers";
+  let query = `SELECT * FROM ${table} WHERE email = ?`;
   let queryArray = [email];
 
   let [rows, fields] = await connPromise.execute(query, queryArray);
-  return rows;
+  let response = rows.length > 0;
+  console.log("Check email: ", response);
+  return response;
 }
